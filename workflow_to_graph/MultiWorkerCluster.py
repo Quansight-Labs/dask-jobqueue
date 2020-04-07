@@ -1,3 +1,4 @@
+# Based on the idea https://github.com/dask/dask-jobqueue/issues/378
 import logging
 
 import dask
