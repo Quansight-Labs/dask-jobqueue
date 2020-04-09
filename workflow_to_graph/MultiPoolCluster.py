@@ -1,14 +1,115 @@
 # Based on the idea https://github.com/dask/dask-jobqueue/issues/378
+import asyncio
+import atexit
+import copy
 import logging
+import math
+import weakref
+
+import dask
+from tornado import gen
+
+from distributed.deploy.adaptive import Adaptive
+from distributed.deploy.cluster import Cluster
+from distributed.core import rpc, CommClosedError
+from distributed.utils import (
+    LoopRunner,
+    silence_logging,
+    ignoring,
+    parse_bytes,
+    parse_timedelta,
+    import_term,
+    TimeoutError,
+)
+from distributed.scheduler import Scheduler
+from distributed.security import Security
+from distributed.deploy.spec import NoOpAwaitable
+
+import logging
+import math
 
 import dask
 from distributed import Scheduler
 
-from dask_jobqueue import JobQueueCluster
+from dask_jobqueue import JobQueueCluster, SLURMCluster
 from dask_jobqueue.core import Job
+from dask_jobqueue.slurm import SLURMJob
 
 
 logger = logging.getLogger(__name__)
+
+
+class MultiPoolJob(SLURMJob):
+    # Override class variables
+    submit_command = "sbatch"
+    cancel_command = "scancel"
+    config_name = "slurm"
+    pass
+
+
+class MultiPoolCluster(SLURMCluster):
+    job_cls = MultiPoolJob
+    config_name = "slurm"
+
+    # If I just end up passing worker_pools to MultiPoolJob then I don't even need this __init__, and I can inherit from SlurmCluster
+    # def __init__(
+    #     self,
+    #     worker_pools=None,
+    #     **kwargs
+    # ):
+    #     self.worker_pools = worker_pools
+    #     super().__init__(**kwargs)
+
+    def scale(self, n=None, jobs=0, memory=None, cores=None):
+        """ Scale cluster to specified configurations.
+
+        Parameters
+        ----------
+        n : int or dict
+           Target number of workers
+        jobs : int
+           Target number of jobs
+        memory : str
+           Target amount of memory
+        cores : int
+           Target number of cores
+
+        Notes: The logic is, set
+        """
+        if n is not None:
+            jobs = int(math.ceil(n / self._dummy_job.worker_processes))
+            n = jobs
+
+        if memory is not None:
+            n = max(n, int(math.ceil(parse_bytes(memory) / self._memory_per_worker())))
+
+        if cores is not None:
+            n = max(n, int(math.ceil(cores / self._threads_per_worker())))
+
+        # remove workers if needed
+        if len(self.worker_spec) > n:
+            not_yet_launched = set(self.worker_spec) - {
+                v["name"] for v in self.scheduler_info["workers"].values()
+            }
+            while len(self.worker_spec) > n and not_yet_launched:
+                del self.worker_spec[not_yet_launched.pop()]
+
+        while len(self.worker_spec) > n:
+            self.worker_spec.popitem()
+
+        # add workers if needed
+        if self.status not in ("closing", "closed"):
+            while len(self.worker_spec) < n:
+                self.worker_spec.update(self.new_worker_spec())
+
+        self.loop.add_callback(self._correct_state)
+
+        if self.asynchronous:
+            return NoOpAwaitable()
+
+
+
+
 
 class SGEIdiapCluster(JobQueueCluster):
     """ Launch Dask jobs in the IDIAP SGE cluster
@@ -109,13 +210,15 @@ class SGEIdiapCluster(JobQueueCluster):
         }
 
         # Defining a new worker_spec with some SGE characteristics
-        self.new_spec = worker_spec
+        self.new_spec = worker_spec # I think I need to replace with self.new_worker_spec
 
         # Launching the jobs according to the new worker_spec
         n_workers = self.n_workers_sync
         self.n_workers_sync += n_jobs
         return super(JobQueueCluster, self).scale(
             n_workers + n_jobs, memory=None, cores=n_cores)
+
+
 
 
 class SGEIdiapJob(Job):
@@ -190,3 +293,9 @@ class SGEIdiapJob(Job):
         }
         self.job_header = header_template % config
         logger.debug("Job script: \n %s" % self.job_script())
+
+if __name__ == "__main__":
+    # sc = SLURMCluster()
+    mpc = MultiPoolCluster(cores=1, memory='200 MB')
+    mpc.scale(1)
+    print('bye')
