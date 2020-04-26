@@ -1,19 +1,26 @@
 # Workflow File
 
 [resources]
-cluster_type = "SLURMCluster" # Could be any cluster type supported by Job Queue, but obviously must match the Workload Manager used by the HPC Cluster.
+cluster_type = "MultiSpecCluster" # Could be any cluster type supported by Job Queue, but obviously must match the Workload Manager used by the HPC Cluster.
 n_workers = 10
 
 [resources.worker]
-# per worker params (any of those supported by that cluster type in Jobqueue)
-cores = 8
-processes = 4
-memory = "16GB"
-project = "MyProject"
 Walltime = "01:00:00"
 queue = "normal"
+project = "MyProject"
+
+[resources.worker.small]
+# per worker params (any of those supported by that cluster type in Jobqueue)
+cores = 1
+memory = "200 MB"
+
+[resources.worker.large]
+cores = 2
+memory = "400 MB"
 
 [job1]
+worker_spec = 'small'
+n_workers = 2
 [job1.tasks]
 task1 = '''echo 'job1-task1' &&
 touch 'job1-task1' &&
@@ -25,6 +32,8 @@ sleep 5
 '''
 
 [job2]
+worker_spec = 'large'
+n_workers = 1
 depends = ["job1"]
 [job2.tasks]
 task1 = '''echo 'job2-task1' &&

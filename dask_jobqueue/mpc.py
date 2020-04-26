@@ -1,4 +1,3 @@
-# Based on the idea https://github.com/dask/dask-jobqueue/issues/378
 import asyncio
 import atexit
 import copy
@@ -97,36 +96,6 @@ class MultiPoolCluster(SLURMCluster):
                 workers.append(worker['name'])
         return workers
 
-    # def scale(self, n=None, jobs=0, memory=None, cores=None):
-    #     """ Scale cluster to specified configurations.
-
-    #     Parameters
-    #     ----------
-    #     n : int or dict
-    #        Target number of workers
-    #     jobs : int
-    #        Target number of jobs
-    #     memory : str
-    #        Target amount of memory
-    #     cores : int
-    #        Target number of cores
-
-    #     Notes: The logic is, set
-    #     """
-        
-
-    #     if isinstance(n, dict):
-    #         cum_n_workers = len(self.workers)
-    #         scaling_dict = n
-    #         for profile, n_workers in scaling_dict.items():
-    #             cum_n_workers += n_workers
-    #             self.new_spec = sample_worker_spec[profile]
-    #             self.scale(n=cum_n_workers)
-    #     else:
-    #         self.scale(n=None,
-    #                      jobs=jobs,
-    #                      memory=memory,
-    #                      cores=cores)
 
     def scale(self, n=None, jobs=0, spec_name=None):
         """ Scale cluster to specified configurations.
@@ -163,9 +132,6 @@ class MultiPoolCluster(SLURMCluster):
             not_yet_launched = set(local_workers) - \
                                 set(self.get_workers_scheduler(spec_name))
 
-            # not_yet_launched = set(self.worker_spec) - {
-            #     v["name"] for v in self.scheduler_info["workers"].values()
-            # }
             while len(self.get_workers_local(spec_name)) > n and not_yet_launched:
                 del self.worker_spec[not_yet_launched.pop()]
         

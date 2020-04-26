@@ -34,7 +34,7 @@ def test_get_all_specs(mpc_cluster):
     assert len(mpc.named_specs) == 2
 
 
-# helper for this example
+# helper for test below
 def make_bash_list(job_num, ntasks):
     bash_list = []
     for i in range(ntasks):
@@ -43,7 +43,7 @@ def make_bash_list(job_num, ntasks):
                          "sleep 1")
     return bash_list
 
-
+@pytest.mark.env("mpc")
 def test_run_task_on_specific_worker(mpc_cluster):
     mpc = mpc_cluster
     mpc.add_new_spec('large', cores=2, memory='250 MB')
