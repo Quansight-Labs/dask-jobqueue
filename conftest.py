@@ -6,7 +6,7 @@ from distributed.utils_test import loop  # noqa: F401
 import pytest
 
 import dask_jobqueue.lsf
-
+from dask_jobqueue import MultiPoolCluster
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -44,3 +44,17 @@ def mock_lsf_version(monkeypatch, request):
     except OSError:
         # Provide a fake implementation of lsf_version()
         monkeypatch.setattr(dask_jobqueue.lsf, "lsf_version", lambda: "10")
+
+@pytest.mark.env('mpc')
+@pytest.fixture(scope='session')
+def mpc_cluster():
+    mpc = MultiPoolCluster(n_workers=0,
+                           threads=1,
+                           cores=1,
+                           memory='200 MB',
+                           processes=1,
+                           scheduler_options={'dashboard_address':
+                                            ":8788"},
+                           spec_name='small',
+    )
+    return mpc

@@ -8,6 +8,7 @@ from .sge import SGECluster
 from .lsf import LSFCluster
 from .oar import OARCluster
 from .htcondor import HTCondorCluster
+from .mpc import MultiPoolCluster
 
 from ._version import get_versions
 
