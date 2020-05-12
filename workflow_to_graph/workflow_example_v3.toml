@@ -1,0 +1,61 @@
+# Workflow File
+# This should work for any type of cluster supported by dask
+# Only supports a single worker type
+
+[cluster]
+cluster_type = "SLURMCluster" # Could be any cluster type supported by Dask (including those in Dask-Jobqueue)
+# n_workers = 2 # optional with LocalCluster
+min_workers = 1 # either specify min & max_workers or n_workers, optional with LocalCluster
+max_workers = 5 
+
+[cluster.worker]  # these params are passed into the cluster
+Walltime = "01:00:00"
+queue = "normal"
+project = "MyProject"
+cores = 1
+memory = "200 MB"
+
+[job1]
+# n_workers = 2 # unsure precisely how scaling on jobs should work (not currently implemented)
+[job1.tasks]
+task1 = '''echo 'job1-task1' &&
+touch 'job1-task1' &&
+sleep 1
+'''
+task2 = '''echo 'job1-task2' &&
+touch 'job1-task2' &&
+sleep 1
+'''
+
+[job2a]
+# n_workers = 1 (not currently implemented)
+depends = ["job1"]
+[job2a.tasks]
+task1 = '''echo 'job2a-task1' &&
+touch 'job2a-task1' &&
+sleep 1
+'''
+task2 = '''echo 'job2a-task2' &&
+touch 'job2a-task2' &&
+sleep 1
+'''
+
+[job2b]
+# n_workers = 2 (not currently implemented)
+depends = ["job1"]
+[job2b.tasks]
+task1 = '''echo 'job2b-task1' &&
+touch 'job2b-task1' &&
+sleep 1
+'''
+task2 = '''echo 'job2b-task2' &&
+touch 'job2b-task2' &&
+sleep 1
+'''
+
+### Expected Graph
+# dsk = {
+#         'job1': (job_runner, job1_bash_list),
+#         'job2a': [(job_runner, job2a_bash_list), 'job1'],
+#         'job2b': [(job_runner, job2b_bash_list), 'job1']
+#     }
